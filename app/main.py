@@ -4,6 +4,7 @@ from fastapi.params import Body
 from pydantic import BaseModel  # for schema validation
 from typing import Optional     # for optional field in schema
 from random import randrange
+import psycopg
 
 # uvicorn main:app --reload     >> for running the fastApi app
 #new >> we put main.py in a app folder(a pakage initiated with __init__.py)
@@ -36,6 +37,9 @@ class Post(BaseModel):
     content: str                    #required
     published: bool = False         #default value >> optional field for the user 
 #    rating: Optional[int]= None     
+
+with psycopg.connect() as conn:
+    
 
 # the @ is a decorater
 @app.get("/")   #path operation with http method

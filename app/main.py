@@ -1,12 +1,14 @@
 # main app to be built here
+import time
 from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel  # for schema validation
 from typing import Optional     # for optional field in schema
 from random import randrange
-import psycopg
+import psycopg as db
+from psycopg.rows import dict_row
 
-# uvicorn main:app --reload     >> for running the fastApi app
+# uvicorn app.main:app --reload     >> for running the fastApi app
 #new >> we put main.py in a app folder(a pakage initiated with __init__.py)
 # uvicorn app.main:app --reload
 
@@ -38,8 +40,18 @@ class Post(BaseModel):
     published: bool = False         #default value >> optional field for the user 
 #    rating: Optional[int]= None     
 
-with psycopg.connect() as conn:
-    
+while True:
+    try:
+        conn = db.connect(host='localhost', dbname='fastapi', 
+                     user='postgres', password='@gres2010zero', 
+                     row_factory=dict_row)
+        cur = conn.cursor()
+        print('database connected')
+        break
+    except db.Error as e:
+        print("Connection failed. Retrying in 5 seconds...")
+        print(f"Error: {e}")
+        time.sleep(5)
 
 # the @ is a decorater
 @app.get("/")   #path operation with http method

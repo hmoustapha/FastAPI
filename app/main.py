@@ -1,12 +1,20 @@
-# main app to be built here
 import time
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException , Depends # Depend v3
 from fastapi.params import Body
 from pydantic import BaseModel, ConfigDict  # for schema validation 
 from typing import Optional     # for optional field in schema
 from random import randrange
-import psycopg as db            # for connecting to postgres
+# version 2
+import psycopg as pgres            # for connecting to postgres
 from psycopg.rows import dict_row   # for matching rows in cursor
+# version 3 - using Object Relational Mapper (ORM) instead of raw psycopg
+# requires opening a session using db engine and model classes
+from sqlalchemy.orm import Session
+from . import models
+from .database import engine, get_db
+
+# version 3 - only CREATE all tables stated in models / doesn't UPDATE tables 
+models.Base.metadata.create_all(bind=engine)
 
 # uvicorn app.main:app --reload     >> for running the fastApi app
 #new >> we put main.py in a app folder(a pakage initiated with __init__.py)
@@ -17,10 +25,11 @@ from psycopg.rows import dict_row   # for matching rows in cursor
 # or
 # http://127.0.0.1:8000/redoc     >> diff format
 
+#version 1
 app = FastAPI()
 
 """
-# old version
+# version 1
 # data stored in code to be given when post request comes
 my_posts=[
     {"title":"Amazing stuff","Content":"Beaches Islands Rockets","published":False,"id":1},
@@ -36,7 +45,7 @@ def find_post_index(id):
         if p["id"] == id:
             return i
 """
-
+# version 1
 class Post(BaseModel):  # for schema validation
     model_config = ConfigDict(extra='forbid')   # forbid extra fields from user
     title: str
@@ -44,31 +53,32 @@ class Post(BaseModel):  # for schema validation
     published: bool = False         #default value >> optional field for the user 
 #    rating: Optional[int]= None     
 
-# Setting up the database connection
+# version 2 - Setting up the database connection
 while True:
     try:
-        conn = db.connect(host='localhost', dbname='fastapi', 
+        conn = pgres.connect(host='localhost', dbname='fastapi', 
                      user='postgres', password='@gres2010zero', 
                      row_factory=dict_row)
         cur = conn.cursor()
         print('database connected')
         break
-    except db.Error as e:
+    except pgres.Error as e:
         print("Connection failed. Retrying in 5 seconds...")
         print(f"Error: {e}")
         time.sleep(5)
 
-# the @ is a decorater
+# version 1 - the @ is a decorater
 @app.get("/")   #path operation with http method
 async def main_page():
     return {"Post": "Hello World>>>>>>"}
 
 """
-# old version
+# version 1
 @app.get("/posts")   #path operation with http method
 def fetch_posts():
     return {"Post": my_posts}
 """
+#version 2
 @app.get("/posts")   #path operation with http method
 def fetch_posts():
     cur.execute("""SELECT * FROM posts""")  # SQL query
@@ -76,7 +86,7 @@ def fetch_posts():
     return {"Post": db_posts}
 
 """
-# old version
+# version 1
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def creat_post(payload: Post):
     print(payload)
@@ -86,6 +96,7 @@ def creat_post(payload: Post):
     my_posts.append(post_dict)
     return {"data":post_dict}   
 """
+#version 2
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def creat_post(payload: Post): #Post === BaseModel is a pydantic class
     cur.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""",
@@ -98,7 +109,7 @@ def creat_post(payload: Post): #Post === BaseModel is a pydantic class
     return {"message":"created post", "data":db_new_post}  
 
 """
-#old version
+# version 1
 @app.get("/posts/{id}")
 def fetch_one_post(id: int):
     one_post = find_Post(id) #the path param is always a str convert to int
@@ -108,7 +119,7 @@ def fetch_one_post(id: int):
                             detail=f'Post with id: {id} is not found')
     return {"your post details":one_post}
 """
-
+#version 2
 @app.get("/posts/{id}")
 def fetch_one_post(id: int):
     cur.execute("""SELECT * FROM posts WHERE id = %(id)s;""", {'id':id})  # SQL query another way
@@ -121,6 +132,7 @@ def fetch_one_post(id: int):
     return {"your post details":db_post}
 
 """
+# version 1
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
     index = find_post_index(id)
@@ -130,7 +142,7 @@ def delete_post(id: int):
     my_posts.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 """
-
+#version 2
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
     cur.execute("""DELETE FROM posts WHERE id = %(id)s RETURNING *""", {'id':str(id)})
@@ -142,7 +154,7 @@ def delete_post(id: int):
     return {'message':'deleted post', 'data':db_deleted_post}
 
 """
-# old version
+# version 1
 @app.put("/posts/{id}")
 def update_post(id: int, post: Post):
     index = find_post_index(id)
@@ -154,7 +166,7 @@ def update_post(id: int, post: Post):
     my_posts[index] = post_dict
     return {"updated":post_dict}
 """
-
+#version 2
 @app.put("/posts/{id}")
 def update_post(id: int, payload: Post):
     cur.execute("""UPDATE posts SET title=%s, content=%s, published=%s WHERE id=%s RETURNING *""",
@@ -165,3 +177,9 @@ def update_post(id: int, payload: Post):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
                             detail=f'post with id: {id} not exist')
     return {"updated":db_updated_post}
+
+
+# version 3 - creating new path operation for orm testing
+@app.get("/ormTest")   #path operation with http method
+def fetch_new_1(db: Session = Depends(get_db)):
+    return {"Post": 'text'}

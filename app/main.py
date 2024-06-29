@@ -182,4 +182,6 @@ def update_post(id: int, payload: Post):
 # version 3 - creating new path operation for orm testing
 @app.get("/ormTest")   #path operation with http method
 def fetch_new_1(db: Session = Depends(get_db)):
-    return {"Post": 'text'}
+    orm_posts =  db.query(models.Post).all()
+    return {"Post": orm_posts}
+

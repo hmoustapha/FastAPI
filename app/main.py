@@ -78,12 +78,22 @@ async def main_page():
 def fetch_posts():
     return {"Post": my_posts}
 """
-#version 2
-@app.get("/posts")   #path operation with http method
+"""
+# version 2 - using psycopg to access db directly
+@app.get("/posts")   
 def fetch_posts():
-    cur.execute("""SELECT * FROM posts""")  # SQL query
+    cur.execute(""SELECT * FROM posts"")  # SQL query - edit later
     db_posts = cur.fetchall()
     return {"Post": db_posts}
+
+"""
+
+# version 3 - using Object Relational Mapper (ORM) instead of raw psycopg
+@app.get("/posts")   #path operation with http method
+def fetch_new_1(db: Session = Depends(get_db)):
+    orm_posts =  db.query(models.Post).all()
+    return {"Post": orm_posts}
+
 
 """
 # version 1
@@ -96,10 +106,11 @@ def creat_post(payload: Post):
     my_posts.append(post_dict)
     return {"data":post_dict}   
 """
-#version 2
+"""
+# version 2
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def creat_post(payload: Post): #Post === BaseModel is a pydantic class
-    cur.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""",
+    cur.execute(""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *"",
                 (payload.title, payload.content, payload.published))
                 # usuing %s is a way to pass variable to sql query
                 # essential for security
@@ -107,6 +118,13 @@ def creat_post(payload: Post): #Post === BaseModel is a pydantic class
     db_new_post = cur.fetchone()
     conn.commit()   # commit the changes to db
     return {"message":"created post", "data":db_new_post}  
+"""
+
+# version 3 - using Object Relational Mapper (ORM) instead of raw psycopg
+@app.post("/posts", status_code=status.HTTP_201_CREATED)
+def creat_post(payload: Post, db: Session = Depends(get_db)):
+    new_post = models.Post(title=payload.title, content=payload.content, published=payload.published)
+    return {"message":"created post", "data":new_post} 
 
 """
 # version 1

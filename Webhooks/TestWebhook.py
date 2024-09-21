@@ -15,7 +15,7 @@ app = FastAPI()
 #app.config["PREFERRED_URL_SCHEME"] = "https"
 
 # version 1
-# data stored in code to be given when post request comes
+# data stored in code to be given when post request comess
 my_posts=[
     {"title":"Amazing stuff","Content":"Beaches Islands Rockets","published":False,"id":1},
     {"title":"Bad Stuff","Content":"Pollution Deforestation","published":True,"id":2}]
